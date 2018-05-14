@@ -1,0 +1,203 @@
+service: demo-graphql
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: eu-west-1
+  stage: ${opt:stage, 'dev'}
+custom:
+  APP_WEATHER_KEY: ${env.APP_WEATHER_KEY}
+
+plugins:
+  - serverless-offline
+
+functions:
+  coordinatesHttp:
+    handler: src/handlerHttp.coordinates
+    events:
+      - http:
+          path: coordinates
+          method: get
+
+  weatherHttp:
+    handler: src/handlerHttp.weather
+    events:
+      - http:
+          path: weather/{lat}/{lon}
+          method: get
+    environment:
+      APP_WEATHER_KEY: ${self:custom.APP_WEATHER_KEY}
+
+  weather:
+    handler: src/handler.weather
+    environment:
+      APP_WEATHER_KEY: ${self:custom.APP_WEATHER_KEY}
+
+  ip:
+    handler: src/handler.ip
+
+resources:
+  Resources:
+    IamRoleAppSync:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - appsync.amazonaws.com
+              Action:
+                - 'sts:AssumeRole'
+        Policies:
+          - PolicyName: 
+              Fn::Join:
+                - '-'
+                - - ${self:provider.stage}
+                  - ${self:service}
+                  - lambda
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'lambda:invokeFunction'
+                  Resource:
+                    Fn::Join:
+                      - ''
+                      - - 'arn:aws:lambda:'
+                        -  
+                          Ref: 'AWS::Region'
+                        - ':'
+                        - 
+                          Ref: 'AWS::AccountId'
+                        - ':function:'
+                        - ${self:service}
+                        - '*'               
+    AppSyncApi:
+      Type: 'AWS::AppSync::GraphQLApi'
+      Properties:
+        Name: 
+          Fn::Join: 
+            - '-'
+            - - ${self:service}
+              - ${self:provider.stage}              
+        AuthenticationType: API_KEY      
+    AppSyncDataSourceIp:
+      Type: 'AWS::AppSync::DataSource'
+      Properties:
+        Name: "IP_${self:provider.stage}" 
+        Type: AWS_LAMBDA
+        ServiceRoleArn: 
+          Fn::GetAtt:
+            - IamRoleAppSync
+            - Arn
+        LambdaConfig:
+          LambdaFunctionArn: 
+              Fn::GetAtt:
+              - IpLambdaFunction
+              - Arn
+        ApiId: 
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId      
+      DependsOn:
+        - IamRoleAppSync
+        - AppSyncApi          
+    AppSyncDataSourceWeather:
+      Type: 'AWS::AppSync::DataSource'
+      Properties:
+        Name: "Weather_${self:provider.stage}"          
+        Type: AWS_LAMBDA
+        ServiceRoleArn: 
+          Fn::GetAtt:
+            - IamRoleAppSync
+            - Arn
+        LambdaConfig:
+          LambdaFunctionArn: 
+              Fn::GetAtt:
+              - WeatherLambdaFunction
+              - Arn
+        ApiId: 
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId      
+      DependsOn:
+        - IamRoleAppSync
+        - AppSyncApi        
+    AppSyncSchema:
+      Type: 'AWS::AppSync::GraphQLSchema'
+      Properties:
+        Definition: ${file(./schema.graphql)}
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId      
+    AppSyncResolverWeather:
+      Type: 'AWS::AppSync::Resolver'
+      Properties:
+        TypeName: "IP"
+        FieldName: "weather"
+        DataSourceName: "Weather_${self:provider.stage}"
+        RequestMappingTemplate: "{\n    \"version\" : \"2017-02-28\",\n    \"operation\": \"Invoke\",\n    \"payload\": $util.toJson($context.source)\n}"
+        ResponseMappingTemplate: "$util.toJson($context.result)"
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId
+      DependsOn:
+        - AppSyncSchema 
+        - AppSyncDataSourceWeather
+    AppSyncResolverIp:
+      Type: 'AWS::AppSync::Resolver'
+      Properties:
+        TypeName: "Query"
+        FieldName: "ip"
+        DataSourceName: "IP_${self:provider.stage}"
+        RequestMappingTemplate: "{\n    \"version\" : \"2017-02-28\",\n    \"operation\": \"Invoke\",\n    \"payload\": $util.toJson($context.request.headers['x-forwarded-for'])\n}"
+        ResponseMappingTemplate: "$util.toJson($context.result)"
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId      
+      DependsOn:
+        - AppSyncSchema
+        - AppSyncDataSourceIp
+    AppSyncResolverWeatherInfo:
+      Type: 'AWS::AppSync::Resolver'
+      Properties:
+        TypeName: "Query"
+        FieldName: "weatherInfo"
+        DataSourceName: "Weather_${self:provider.stage}"
+        RequestMappingTemplate: "{\n    \"version\" : \"2017-02-28\",\n    \"operation\": \"Invoke\",\n    \"payload\": $util.toJson($context.args)\n}"
+        ResponseMappingTemplate: "$util.toJson($context.result)"
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId 
+      DependsOn:
+        - AppSyncSchema    
+        - AppSyncDataSourceWeather 
+    AppSyncApiKey:
+      Type: "AWS::AppSync::ApiKey"
+      Properties:        
+        Expires: 1527510741
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId
+
+Outputs:
+  appSyncUrl:
+    Description: AppSync URL
+    Value:
+      Fn::GetAtt:
+        - AppSyncApi
+        - GraphQLUrl          
+  appSyncKey:
+    Description: AppSync API key
+    Value:
+      Fn::GetAtt:
+        - AppSyncApiKey
+        - ApiKey          

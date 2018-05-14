@@ -1,0 +1,35 @@
+﻿type IP {
+  id: ID!
+  as: String
+  city: String
+  country: String
+  countryCode: String
+  isp: String
+  lat: String
+  lon: String
+  org: String
+  region: String
+  regionName: String
+  weather: WeatherResults
+}
+
+type Query {
+  ip: IP
+  weatherInfo(lat: Float, lon: Float): WeatherResults
+}
+
+type Weather {
+  id: ID!
+  main: String
+  description: String
+  icon: String
+}
+
+type WeatherResults {
+  temperature: Float
+  weather: [Weather]
+}
+
+schema {
+  query: Query
+}
