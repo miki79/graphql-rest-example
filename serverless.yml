@@ -5,8 +5,6 @@ provider:
   runtime: nodejs8.10
   region: eu-west-1
   stage: ${opt:stage, 'dev'}
-custom:
-  APP_WEATHER_KEY: ${env.APP_WEATHER_KEY}
 
 plugins:
   - serverless-offline
@@ -25,14 +23,21 @@ functions:
       - http:
           path: weather/{lat}/{lon}
           method: get
+  businessHttp:
+    handler: src/handlerHttp.business
+    events:
+      - http:
+          path: business/{lat}/{lon}
+          method: get
+
+  business:
+    handler: src/handler.business
     environment:
-      APP_WEATHER_KEY: ${self:custom.APP_WEATHER_KEY}
+      YELP_KEY: ${env:YELP_KEY}
 
   weather:
     handler: src/handler.weather
-    environment:
-      APP_WEATHER_KEY: ${self:custom.APP_WEATHER_KEY}
-
+    
   ip:
     handler: src/handler.ip
 
@@ -125,6 +130,27 @@ resources:
           - ApiId      
       DependsOn:
         - IamRoleAppSync
+        - AppSyncApi 
+    AppSyncDataSourceBusiness:
+      Type: 'AWS::AppSync::DataSource'
+      Properties:
+        Name: "Business_${self:provider.stage}"          
+        Type: AWS_LAMBDA
+        ServiceRoleArn: 
+          Fn::GetAtt:
+            - IamRoleAppSync
+            - Arn
+        LambdaConfig:
+          LambdaFunctionArn: 
+              Fn::GetAtt:
+              - BusinessLambdaFunction
+              - Arn
+        ApiId: 
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId      
+      DependsOn:
+        - IamRoleAppSync
         - AppSyncApi        
     AppSyncSchema:
       Type: 'AWS::AppSync::GraphQLSchema'
@@ -149,6 +175,21 @@ resources:
       DependsOn:
         - AppSyncSchema 
         - AppSyncDataSourceWeather
+    AppSyncResolverBusiness:
+      Type: 'AWS::AppSync::Resolver'
+      Properties:
+        TypeName: "IP"
+        FieldName: "businesses"
+        DataSourceName: "Business_${self:provider.stage}"
+        RequestMappingTemplate: "{\n    \"version\" : \"2017-02-28\",\n    \"operation\": \"Invoke\",\n    \"payload\": $util.toJson($context.source)\n}"
+        ResponseMappingTemplate: "$util.toJson($context.result)"
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId
+      DependsOn:
+        - AppSyncSchema 
+        - AppSyncDataSourceBusiness
     AppSyncResolverIp:
       Type: 'AWS::AppSync::Resolver'
       Properties:
@@ -178,7 +219,22 @@ resources:
           - ApiId 
       DependsOn:
         - AppSyncSchema    
-        - AppSyncDataSourceWeather 
+        - AppSyncDataSourceWeather
+    AppSyncResolverBusinessInfo:
+      Type: 'AWS::AppSync::Resolver'
+      Properties:
+        TypeName: "Query"
+        FieldName: "businessesInfo"
+        DataSourceName: "Business_${self:provider.stage}"
+        RequestMappingTemplate: "{\n    \"version\" : \"2017-02-28\",\n    \"operation\": \"Invoke\",\n    \"payload\": $util.toJson($context.args)\n}"
+        ResponseMappingTemplate: "$util.toJson($context.result)"
+        ApiId:   
+          Fn::GetAtt:
+          - AppSyncApi
+          - ApiId 
+      DependsOn:
+        - AppSyncSchema    
+        - AppSyncDataSourceBusiness 
     AppSyncApiKey:
       Type: "AWS::AppSync::ApiKey"
       Properties:        
@@ -187,17 +243,4 @@ resources:
           Fn::GetAtt:
           - AppSyncApi
           - ApiId
-
-Outputs:
-  appSyncUrl:
-    Description: AppSync URL
-    Value:
-      Fn::GetAtt:
-        - AppSyncApi
-        - GraphQLUrl          
-  appSyncKey:
-    Description: AppSync API key
-    Value:
-      Fn::GetAtt:
-        - AppSyncApiKey
-        - ApiKey          
+   

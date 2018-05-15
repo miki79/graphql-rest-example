@@ -10,24 +10,28 @@
   org: String
   region: String
   regionName: String
-  weather: WeatherResults
+  weather: Weather
+  businesses: [Business]
 }
 
 type Query {
   ip: IP
-  weatherInfo(lat: Float, lon: Float): WeatherResults
+  weatherInfo(lat: Float, lon: Float): Weather
+  businessesInfo(lat: Float, lon: Float): [Business]
 }
 
 type Weather {
   id: ID!
-  main: String
+  temperature: Float
   description: String
   icon: String
 }
 
-type WeatherResults {
-  temperature: Float
-  weather: [Weather]
+type Business {
+  id: ID!
+  name: String
+  price: String
+  phone: String
 }
 
 schema {
