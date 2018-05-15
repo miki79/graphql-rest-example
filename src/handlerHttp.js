@@ -7,7 +7,7 @@ module.exports.coordinates = async (event, context, callback) => {
   const ip =
     event.requestContext.identity.sourceIp !== '127.0.0.1'
       ? event.requestContext.identity.sourceIp
-      : '86.188.153.178';
+      : '216.58.206.99';
 
   const response = {
     statusCode: 200,

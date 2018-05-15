@@ -8,7 +8,7 @@ module.exports.graphql = (event, context, callback) => {
   const ip =
     event.requestContext.identity.sourceIp !== '127.0.0.1'
       ? event.requestContext.identity.sourceIp
-      : '86.188.153.178';
+      : '216.58.206.99';
   const handler = server.graphqlLambda({
     schema,
     context: { ip },
@@ -17,5 +17,5 @@ module.exports.graphql = (event, context, callback) => {
 };
 
 module.exports.graphiql = server.graphiqlLambda({
-  endpointURL: '/graphql',
+  endpointURL: '/dev/graphql',
 });
