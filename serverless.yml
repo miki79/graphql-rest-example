@@ -41,6 +41,25 @@ functions:
   ip:
     handler: src/handler.ip
 
+  graphql:
+    handler: src/graphql.graphql  
+    events:
+      - http:
+          path: graphql
+          method: get
+          cors: true
+      - http:
+          path: graphql
+          method: post
+          cors: true
+  graphiql:
+    handler: src/graphql.graphiql
+    events:
+      - http:
+          path: graphiql
+          method: get
+          cors: true
+
 resources:
   Resources:
     IamRoleAppSync:
