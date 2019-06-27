@@ -22,7 +22,7 @@
     "eslint": "^5.16.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.18.0",
-    "eslint-plugin-jest": "^21.27.2",
+    "eslint-plugin-jest": "^22.7.1",
     "jest": "^24.8.0",
     "serverless": "^1.45.1",
     "serverless-offline": "^5.5.0"
