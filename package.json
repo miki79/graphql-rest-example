@@ -24,7 +24,7 @@
     "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-jest": "^22.14.1",
     "jest": "^24.8.0",
-    "serverless": "^1.48.4",
+    "serverless": "^1.49.0",
     "serverless-offline": "^5.9.0"
   }
 }
