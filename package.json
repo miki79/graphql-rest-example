@@ -14,7 +14,7 @@
     "extend": "^3.0.2",
     "graphql": "^0.13.2",
     "graphql-server-lambda": "^1.4.1",
-    "graphql-tools": "^4.0.6",
+    "graphql-tools": "^4.0.7",
     "yelp-fusion": "^3.0.0",
     "yql": "^1.0.2"
   },
